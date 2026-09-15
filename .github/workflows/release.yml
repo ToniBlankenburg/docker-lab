@@ -5,10 +5,12 @@ on:
     branches: [main]
 
 # GitHub Pages Deploy — braucht id-token für OIDC-Attestierung des Artefakts.
+# packages: write für den Verifier-Publish nach GHCR.
 permissions:
   contents: read
   pages: write
   id-token: write
+  packages: write
 
 concurrency:
   group: pages
@@ -48,3 +50,79 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  verifier-discover:
+    name: verifier-discover
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      has_labs: ${{ steps.discover.outputs.has_labs }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: discover
+        shell: bash
+        run: |
+          set -euo pipefail
+          labs=$(find verifier -mindepth 1 -maxdepth 1 -type d -name 'lab-*' \
+                  -exec test -f '{}/Dockerfile' \; \
+                  -exec test -f '{}/VERSION' \; \
+                  -exec test -f '{}/contract-test.sh' \; -print \
+                  | sort \
+                  | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "matrix=$labs" >> "$GITHUB_OUTPUT"
+          if [ "$labs" = "[]" ]; then
+            echo "has_labs=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_labs=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  verifier-publish:
+    name: verifier-publish (${{ matrix.lab }})
+    needs: verifier-discover
+    if: needs.verifier-discover.outputs.has_labs == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lab: ${{ fromJSON(needs.verifier-discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ableiten von Image-Name und Tags
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          lab_dir="${{ matrix.lab }}"                    # z. B. verifier/lab-00-dummy
+          lab_name="$(basename "$lab_dir")"              # lab-00-dummy
+          version="$(tr -d '[:space:]' < "$lab_dir/VERSION")"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+$'; then
+            echo "VERSION in $lab_dir muss eine positive Ganzzahl sein, war: '$version'" >&2
+            exit 1
+          fi
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${owner}/docker-schulung/verify-${lab_name}"
+          {
+            echo "image=$image"
+            echo "version=$version"
+            echo "tags=${image}:latest,${image}:v${version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login bei GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build und Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.lab }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=verifier-${{ matrix.lab }}
+          cache-to: type=gha,scope=verifier-${{ matrix.lab }},mode=max

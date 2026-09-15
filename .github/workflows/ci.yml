@@ -22,3 +22,40 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  verifier-discover:
+    name: verifier-discover
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      has_labs: ${{ steps.discover.outputs.has_labs }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: discover
+        shell: bash
+        run: |
+          set -euo pipefail
+          labs=$(find verifier -mindepth 1 -maxdepth 1 -type d -name 'lab-*' \
+                  -exec test -f '{}/contract-test.sh' \; -print \
+                  | sort \
+                  | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "matrix=$labs" >> "$GITHUB_OUTPUT"
+          if [ "$labs" = "[]" ]; then
+            echo "has_labs=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_labs=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  verifier-tests:
+    name: verifier-tests (${{ matrix.lab }})
+    needs: verifier-discover
+    if: needs.verifier-discover.outputs.has_labs == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lab: ${{ fromJSON(needs.verifier-discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Contract-Tests für ${{ matrix.lab }}
+        run: bash ${{ matrix.lab }}/contract-test.sh
