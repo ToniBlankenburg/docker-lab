@@ -39,6 +39,17 @@ require() {
 require docker
 require jq
 
+# Docker Desktop auf Windows will Windows-Pfade für Bind-Mounts. Unter MinGW/Cygwin
+# konvertieren wir daher via `cygpath -w`; auf Linux (CI) bleibt der Pfad wie er ist.
+host_path_for_docker() {
+  local p="$1"
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$p"
+  else
+    printf '%s' "$p"
+  fi
+}
+
 # --- Build ------------------------------------------------------------------
 if [ -z "${SKIP_BUILD:-}" ]; then
   log "Baue Verifier-Image: $VERIFIER_IMAGE"
@@ -79,14 +90,25 @@ fixture_down() {
 
 run_verifier() {
   local network="$1" progress_dir="$2" stdout_file="$3" stderr_file="$4"
-  set +e
-  docker run --rm \
-    --network "$network" \
-    -v "$progress_dir:/progress" \
-    "$VERIFIER_IMAGE" \
-    >"$stdout_file" 2>"$stderr_file"
-  local rc=$?
-  set -e
+  local mount_src rc attempt
+  mount_src="$(host_path_for_docker "$progress_dir")"
+  # Docker Desktop auf Windows liefert gelegentlich EOF auf dem Named-Pipe,
+  # wenn `docker run` direkt nach `compose up` erfolgt. Auf Linux (CI) tritt
+  # das nicht auf; der Retry kostet dort nichts.
+  for attempt in 1 2 3; do
+    set +e
+    docker run --rm \
+      --network "$network" \
+      -v "$mount_src:/progress" \
+      "$VERIFIER_IMAGE" \
+      >"$stdout_file" 2>"$stderr_file"
+    rc=$?
+    set -e
+    if [ "$rc" -ne 125 ] || ! grep -q 'error during connect' "$stderr_file"; then
+      break
+    fi
+    sleep 2
+  done
   echo "$rc"
 }
 

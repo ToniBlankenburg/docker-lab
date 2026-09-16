@@ -13,3 +13,11 @@
 - [x] `release.yml` published bei Merge auf `main` alle geänderten Verifier-Images nach GHCR mit Tags `latest` und `vN`
 - [x] Fortschrittsdatei-Format entspricht dem Spec (`version`, `labs_solved[]` mit `lab` und `solved_at` als ISO-8601)
 - [x] Verhalten bei kaputter `progress.json`: Verifier ersetzt die Datei mit leerem Zustand und protokolliert auf Stderr
+
+## Comments
+
+**2026-09-16:** Contract-Test-Harness und Dummy-Verifier vollständig umgesetzt.
+Der lokale Lauf ist nach Docker-Desktop-Neustart grün: solved, unsolved,
+Idempotenz und kaputte `progress.json` bestehen. Zusätzlich umgehen HTTP-Probes
+Container-Proxies, Docker-Desktop-EOFs werden im Harness wiederholt und
+Windows-Bind-Mount-Pfade werden für Docker Desktop konvertiert.

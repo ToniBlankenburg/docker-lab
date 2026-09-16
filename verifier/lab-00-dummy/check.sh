@@ -29,11 +29,13 @@ elif ! jq -e '.' "$PROGRESS_FILE" >/dev/null 2>&1; then
 fi
 
 # --- Ziel-Container abfragen (mit kurzem Retry-Fenster) ------------------
+# --noproxy '*' erzwingt Direktverbindung, auch wenn Docker Desktop einen
+# HTTP-Proxy in den Container injiziert (Corp-Umgebungen).
 response=""
 reachable=0
 attempt=0
 while [ "$attempt" -lt 15 ]; do
-  if response=$(curl -sf --max-time 3 "http://${TARGET_HOST}:${TARGET_PORT}/" 2>/dev/null); then
+  if response=$(curl -sf --noproxy '*' --max-time 3 "http://${TARGET_HOST}:${TARGET_PORT}/" 2>/dev/null); then
     reachable=1
     break
   fi
