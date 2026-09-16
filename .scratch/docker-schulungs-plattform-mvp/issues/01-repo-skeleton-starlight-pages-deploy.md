@@ -6,11 +6,25 @@
 
 **Status:** ready-for-agent
 
-- [ ] `site/` enthält ein funktionierendes Astro-Starlight-Setup mit Zod-Content-Collections-Konfiguration (auch wenn noch kein Modul liegt)
-- [ ] Starlights i18n-Konfig kennt `de` (Default) und `en`, mit Sprachumschalter in der Seitennavigation
-- [ ] Sidebar-Struktur zeigt die drei leeren Rubriken „Prolog", „Kern", „Vertiefung"
-- [ ] `verifier/`, `labs/`, `.github/workflows/` sind angelegt (mit Platzhaltern oder README-Stubs, wenn leer)
-- [ ] GitHub-Actions-Workflow `ci.yml` mit Job `site-build` läuft grün gegen die leere Site
-- [ ] GitHub-Actions-Workflow `release.yml` deployed nach `main`-Push die Site auf GitHub Pages
+- [x] `site/` enthält ein funktionierendes Astro-Starlight-Setup mit Zod-Content-Collections-Konfiguration (auch wenn noch kein Modul liegt)
+- [x] Starlights i18n-Konfig kennt `de` (Default) und `en`, mit Sprachumschalter in der Seitennavigation
+- [x] Sidebar-Struktur zeigt die drei leeren Rubriken „Prolog", „Kern", „Vertiefung"
+- [x] `verifier/`, `labs/`, `.github/workflows/` sind angelegt (mit Platzhaltern oder README-Stubs, wenn leer)
+- [x] GitHub-Actions-Workflow `ci.yml` mit Job `site-build` läuft grün gegen die leere Site
+- [x] GitHub-Actions-Workflow `release.yml` deployed nach `main`-Push die Site auf GitHub Pages
 - [ ] Deploy-URL öffnet sich, zeigt Startseite, Sprachumschalter funktioniert (auch wenn EN nur eine leere Landingpage zeigt)
-- [ ] `README.md` im Repo-Root erklärt in wenigen Zeilen die Top-Level-Struktur
+- [x] `README.md` im Repo-Root erklärt in wenigen Zeilen die Top-Level-Struktur
+
+## Comments
+
+**2026-09-16:** Skeleton komplett vorhanden (in `init`-Commit und HEAD zusammen).
+`npm run check` und `npm run build` in `site/` laufen grün (9 Pages).
+`ci.yml` hat `site-build`-Job gegen `site/package-lock.json`. `release.yml` hat
+`site-deploy` mit `actions/deploy-pages@v4`, `SITE_URL`/`SITE_BASE` aus Repo-Variables
+mit sinnvollen project-Pages-Defaults. Starlight-i18n konfiguriert `de` (default) + `en`
+mit Sprachumschalter; DE- und EN-Index-, Prolog-, Kern-, Vertiefung-Stubs vorhanden.
+Root-`README.md` erklärt Top-Level-Struktur und Deploy-Anleitung.
+
+Offen: Deploy-URL kann erst nach dem ersten Merge auf `main` mit aktivierten
+GitHub-Pages-Settings verifiziert werden — nicht Agent-lokal prüfbar. Checkbox
+bleibt bewusst offen; Reviewer setzt sie nach erstem grünen Pages-Deploy.
